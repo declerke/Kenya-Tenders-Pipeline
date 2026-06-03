@@ -1,0 +1,86 @@
+version: 2
+
+models:
+  - name: stg_tenders
+    description: "Cleaned and standardised view of raw.tenders"
+    columns:
+      - name: tender_id
+        description: "Primary key from raw.tenders"
+        tests:
+          - not_null
+          - unique
+      - name: procuring_entity
+        description: "Government entity issuing the tender"
+        tests:
+          - not_null
+      - name: status
+        description: "Normalised tender status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Open', 'Closed', 'Awarded', 'Cancelled', 'Other']
+      - name: tender_number
+        description: "Reference number (may be null for some sources)"
+        tests:
+          - unique:
+              config:
+                where: "tender_number is not null"
+
+  - name: fct_tenders
+    description: "Enriched fact table with NLP columns and derived analytics"
+    columns:
+      - name: tender_id
+        tests:
+          - not_null
+          - unique
+      - name: procuring_entity
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Open', 'Closed', 'Awarded', 'Cancelled', 'Other']
+      - name: sector_tag
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - 'IT/Software'
+                - 'Infrastructure'
+                - 'Healthcare'
+                - 'Education'
+                - 'Security'
+                - 'Consulting'
+                - 'Supplies'
+                - 'Other'
+
+  - name: mart_by_entity
+    description: "Aggregated procurement metrics per entity (2+ tenders)"
+    columns:
+      - name: procuring_entity
+        tests:
+          - not_null
+          - unique
+      - name: tender_count
+        tests:
+          - not_null
+
+  - name: mart_by_sector
+    description: "Aggregated metrics per sector classification"
+    columns:
+      - name: sector_tag
+        tests:
+          - not_null
+          - unique
+
+  - name: mart_active_tenders
+    description: "Open tenders with non-expired deadlines, ordered by urgency"
+    columns:
+      - name: tender_id
+        tests:
+          - not_null
+          - unique
+      - name: procuring_entity
+        tests:
+          - not_null

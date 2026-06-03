@@ -1,0 +1,11 @@
+requests==2.31.0
+beautifulsoup4==4.12.3
+psycopg2-binary==2.9.9
+dbt-postgres==1.8.2
+pandas==2.2.2
+spacy==3.7.4
+streamlit==1.35.0
+plotly==5.22.0
+pytest==8.2.2
+python-dotenv==1.0.1
+openpyxl==3.1.4

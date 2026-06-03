@@ -1,0 +1,12 @@
+kenya_tenders:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('APP_DB_HOST', 'postgres') }}"
+      port: "{{ env_var('APP_DB_PORT', '5432') | int }}"
+      user: "{{ env_var('APP_DB_USER', 'postgres') }}"
+      password: "{{ env_var('APP_DB_PASSWORD', 'postgres') }}"
+      dbname: "{{ env_var('APP_DB_NAME', 'tenders_db') }}"
+      schema: public
+      threads: 4
