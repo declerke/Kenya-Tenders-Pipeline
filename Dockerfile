@@ -13,7 +13,7 @@ RUN pip install \
     "dbt-postgres==1.8.2" \
     pandas==2.2.2 \
     spacy==3.7.4 \
-    pytest==8.2.2 \
+    pytest==9.0.3 \
     python-dotenv==1.0.1 \
     openpyxl==3.1.4
 
