@@ -1,9 +1,7 @@
 {{ config(materialized='table', schema='marts') }}
 
 /*
-  mart_active_tenders — all open tenders (status = 'Open')
-  Dataset is historical (2018-2019); date filter omitted so all open records are shown.
-  Rows ordered: future/unknown deadlines first, then by deadline ascending.
+  mart_active_tenders — open tenders with future or unknown deadlines
 */
 
 WITH base AS (
@@ -26,7 +24,8 @@ SELECT
 FROM base
 WHERE
     status = 'Open'
+    AND (deadline_date IS NULL OR deadline_date >= CURRENT_DATE)
 
 ORDER BY
-    CASE WHEN deadline_date IS NULL THEN 0 ELSE 1 END,
-    deadline_date DESC
+    CASE WHEN deadline_date IS NULL THEN 1 ELSE 0 END,
+    deadline_date ASC

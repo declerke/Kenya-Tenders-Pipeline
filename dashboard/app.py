@@ -40,14 +40,18 @@ def load_kpis() -> dict:
             total = cur.fetchone()[0]
             cur.execute("SELECT COUNT(*) FROM raw.tenders WHERE status = 'Open'")
             open_count = cur.fetchone()[0]
-            cur.execute("SELECT COALESCE(SUM(estimated_value_kes), 0) FROM raw.tenders")
-            total_value = cur.fetchone()[0]
-            cur.execute("SELECT COUNT(DISTINCT procuring_entity) FROM raw.tenders")
+            cur.execute("""
+                SELECT COUNT(*) FROM raw.tenders
+                WHERE status = 'Open'
+                AND deadline_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+            """)
+            closing_soon = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(DISTINCT procuring_entity) FROM raw.tenders WHERE procuring_entity != 'Not Disclosed'")
             unique_entities = cur.fetchone()[0]
         return {
             "total": total,
             "open": open_count,
-            "total_value": float(total_value),
+            "closing_soon": closing_soon,
             "entities": unique_entities,
         }
     finally:
@@ -134,7 +138,7 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.divider()
-st.sidebar.caption("Data: OpenAFRICA Kenya Government Tenders")
+st.sidebar.caption("Data: TendersKenya.co.ke (live)")
 st.sidebar.caption("NLP: spaCy en_core_web_sm")
 
 # ---------------------------------------------------------------------------
@@ -153,16 +157,9 @@ if page == "Overview":
         with col2:
             st.metric("Open Tenders", f"{kpis['open']:,}")
         with col3:
-            val = kpis["total_value"]
-            if val >= 1_000_000_000:
-                label = f"KES {val/1_000_000_000:.1f}B"
-            elif val >= 1_000_000:
-                label = f"KES {val/1_000_000:.1f}M"
-            else:
-                label = f"KES {val:,.0f}"
-            st.metric("Total Value", label)
+            st.metric("Closing This Week", f"{kpis['closing_soon']:,}")
         with col4:
-            st.metric("Unique Entities", f"{kpis['entities']:,}")
+            st.metric("Known Entities", f"{kpis['entities']:,}")
 
         st.divider()
         col_left, col_right = st.columns(2)
@@ -221,19 +218,23 @@ elif page == "By Procuring Entity":
         if df.empty:
             st.warning("No entity data available yet. Run the pipeline first.")
         else:
-            top15 = df.head(15)
-            fig = px.bar(
-                top15,
-                x="tender_count",
-                y="procuring_entity",
-                orientation="h",
-                color="tender_count",
-                color_continuous_scale="Blues",
-                labels={"tender_count": "Tender Count", "procuring_entity": "Entity"},
-                title="Top 15 Entities by Tender Count",
-            )
-            fig.update_layout(height=500, showlegend=False, yaxis={"categoryorder": "total ascending"})
-            st.plotly_chart(fig, use_container_width=True)
+            # Exclude "Not Disclosed" aggregation — not meaningful for a chart
+            chart_df = df[df["procuring_entity"] != "Not Disclosed"].head(15)
+            if chart_df.empty:
+                st.info("Entity names are not public on this data source. Showing aggregate table below.")
+            else:
+                fig = px.bar(
+                    chart_df,
+                    x="tender_count",
+                    y="procuring_entity",
+                    orientation="h",
+                    color="tender_count",
+                    color_continuous_scale="Blues",
+                    labels={"tender_count": "Tender Count", "procuring_entity": "Entity"},
+                    title="Top Entities by Tender Count (named entities only)",
+                )
+                fig.update_layout(height=400, showlegend=False, yaxis={"categoryorder": "total ascending"})
+                st.plotly_chart(fig, use_container_width=True)
 
             st.subheader("Full Entity Table")
             display_df = df.copy()
@@ -313,17 +314,6 @@ elif page == "Active Tenders":
             # Entity search
             entity_query = st.sidebar.text_input("Entity Search", placeholder="e.g. Nairobi")
 
-            # Min value slider
-            max_val = float(df["estimated_value_kes"].max()) if df["estimated_value_kes"].notna().any() else 0
-            min_value = st.sidebar.slider(
-                "Min Estimated Value (KES)",
-                min_value=0,
-                max_value=int(max_val) if max_val > 0 else 100_000_000,
-                value=0,
-                step=500_000,
-                format="%d",
-            )
-
             # Apply filters
             filtered = df.copy()
             if selected_sector != "All":
@@ -331,10 +321,6 @@ elif page == "Active Tenders":
             if entity_query:
                 filtered = filtered[
                     filtered["procuring_entity"].str.contains(entity_query, case=False, na=False)
-                ]
-            if min_value > 0:
-                filtered = filtered[
-                    filtered["estimated_value_kes"].fillna(0) >= min_value
                 ]
 
             st.markdown(f"Showing **{len(filtered)}** active tenders")
