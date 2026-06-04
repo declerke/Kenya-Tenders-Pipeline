@@ -20,10 +20,10 @@ x-airflow-common: &airflow-common
     # Airflow 3.0 LocalExecutor needs execution API server URL
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-webserver:8080/execution/'
     # JWT signing key must be identical on all containers
-    AIRFLOW__API_AUTH__JWT_SECRET: 'tenders-kenya-jwt-signing-secret-2024-shared'
-    AIRFLOW__CORE__INTERNAL_API_SECRET_KEY: 'tenders-kenya-internal-secret-2024-shared'
-    AIRFLOW__CORE__FERNET_KEY: 'hLDCCKrMkWHJiCijb28aGh2iSILHvQWnuYRLuFKjL54='
-    AIRFLOW__WEBSERVER__SECRET_KEY: 'kenya-tenders-secret-key-2024'
+    AIRFLOW__API_AUTH__JWT_SECRET: '${AIRFLOW_JWT_SECRET}'
+    AIRFLOW__CORE__INTERNAL_API_SECRET_KEY: '${AIRFLOW_INTERNAL_API_SECRET_KEY}'
+    AIRFLOW__CORE__FERNET_KEY: '${AIRFLOW_FERNET_KEY}'
+    AIRFLOW__WEBSERVER__SECRET_KEY: '${AIRFLOW_WEBSERVER_SECRET_KEY}'
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'false'
     # App DB connection
     APP_DB_HOST: postgres
