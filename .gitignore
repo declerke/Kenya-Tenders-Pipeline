@@ -41,9 +41,3 @@ projectsummary.md
 # OS
 .DS_Store
 Thumbs.db
-
-# Assets (committed empty via .gitkeep, actual screenshots ignored)
-assets/*.png
-assets/*.jpg
-assets/*.jpeg
-!assets/.gitkeep
