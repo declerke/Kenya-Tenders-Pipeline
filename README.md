@@ -69,31 +69,31 @@ All five tasks run as an **Apache Airflow 3.0 DAG** (`kenya_tenders_pipeline`) s
 
 ### Overview — KPIs, Status Distribution, Sector Breakdown
 
-![Overview](<assets/Kenya Government Procurement — Overview.png>)
+![Overview](assets/overview.png)
 
 *Four KPI cards: Total Tenders (315), Open Tenders (29), Closing This Week (tenders with deadline within 7 days), Known Entities (named entities visible without login). Status bar chart shows the Open/Closed split. Sector donut shows NLP classification distribution across 8 buckets.*
 
 ### By Procuring Entity
 
-![By Entity](<assets/Procurement by Entity.png>)
+![By Entity](assets/by-entity.png)
 
 *Named entities with 2 or more tenders rendered as a horizontal bar chart (entities hidden behind login on the source site are excluded). Full aggregated table below shows tender count, open/closed/awarded counts, and last-seen timestamp per entity.*
 
 ### By Sector — NLP Classification
 
-![By Sector](<assets/Procurement by Sector.png>)
+![By Sector](assets/by-sector.png)
 
 *Bar chart of tender counts per spaCy NLP-classified sector. Sector summary table includes total and average estimated value (N/A where not published by source) and sector-level tender counts. Infrastructure leads with 100 tenders, followed by Supplies (74) and IT/Software (47).*
 
 ### Active Tenders — Urgency Table
 
-![Active Tenders](<assets/Active Tenders.png>)
+![Active Tenders](assets/active-tenders.png)
 
 *29 open tenders with non-expired deadlines, ordered by closing date ascending (most urgent first). Yellow rows highlight tenders closing within 7 days. Sidebar filters for sector and entity name search. Ref column carries the unique URL slug for traceability back to the source listing.*
 
 ### Airflow DAG — 5/5 SUCCESS
 
-![DAG Success](<assets/succesful dag runs.png>)
+![DAG Success](assets/dag-success.png)
 
 *All 5 tasks completing successfully: ingest_tenders → run_nlp_enrichment → run_dbt_models → run_dbt_tests → log_summary. DAG scheduled at 06:00 UTC daily. Manual trigger completes the full pipeline in approximately 2–3 minutes.*
 
