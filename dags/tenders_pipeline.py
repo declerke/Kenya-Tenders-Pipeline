@@ -11,7 +11,7 @@ import subprocess
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 log = logging.getLogger(__name__)
 
@@ -130,11 +130,13 @@ with DAG(
     t1 = PythonOperator(
         task_id="ingest_tenders",
         python_callable=ingest_tenders,
+        do_xcom_push=False,
     )
 
     t2 = PythonOperator(
         task_id="run_nlp_enrichment",
         python_callable=run_nlp_enrichment,
+        do_xcom_push=False,
     )
 
     t3 = PythonOperator(
