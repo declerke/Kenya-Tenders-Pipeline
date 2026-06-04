@@ -128,7 +128,7 @@ def load_active_tenders() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 st.sidebar.title("Kenya Tenders Intelligence")
-st.sidebar.markdown("Government procurement data — OpenAFRICA")
+st.sidebar.markdown("Live Kenya government & NGO procurement intelligence")
 st.sidebar.divider()
 
 page = st.sidebar.radio(
