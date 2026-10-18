@@ -1,175 +1,102 @@
-"""
-Tests for tenders_ingestor.py
-Uses real OpenAFRICA CSV — no synthetic data.
-"""
+"""Unit tests for the current TendersKenya HTML ingestion flow."""
 
+from datetime import date, timedelta
+from pathlib import Path
 import sys
-import os
-from datetime import date
+from unittest.mock import Mock, patch
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from ingestion.tenders_ingestor import (
-    normalize_status,
-    parse_deadline,
-    transform_openafrika,
-    SOURCES,
+from ingestion import tenders_ingestor
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("Jan 02, 2099", date(2099, 1, 2)),
+        ("February 3, 2099", date(2099, 2, 3)),
+        ("04 Mar 2099", date(2099, 3, 4)),
+        ("2099-04-05", date(2099, 4, 5)),
+    ],
 )
-import pandas as pd
+def test_parse_date_supported_formats(value, expected):
+    assert tenders_ingestor.parse_date(value) == expected
 
 
-# ---------------------------------------------------------------------------
-# normalize_status tests
-# ---------------------------------------------------------------------------
-
-class TestNormalizeStatus:
-    def test_published_maps_to_open(self):
-        assert normalize_status("Published") == "Open"
-
-    def test_open_maps_to_open(self):
-        assert normalize_status("Open") == "Open"
-
-    def test_open_case_insensitive(self):
-        assert normalize_status("OPEN") == "Open"
-
-    def test_awarded_maps_to_awarded(self):
-        assert normalize_status("Awarded") == "Awarded"
-
-    def test_closed_maps_to_closed(self):
-        assert normalize_status("Closed") == "Closed"
-
-    def test_cancelled_maps_to_cancelled(self):
-        assert normalize_status("Cancelled") == "Cancelled"
-
-    def test_unknown_maps_to_other(self):
-        assert normalize_status("XYZ_UNKNOWN") == "Other"
-
-    def test_empty_string_maps_to_other(self):
-        assert normalize_status("") == "Other"
-
-    def test_none_maps_to_other(self):
-        assert normalize_status(None) == "Other"
-
-    def test_annulled_maps_to_cancelled(self):
-        assert normalize_status("Cancelled/Annulled") == "Cancelled"
+@pytest.mark.parametrize("value", [None, "", "not a date"])
+def test_parse_date_returns_none_for_empty_or_invalid_values(value):
+    assert tenders_ingestor.parse_date(value) is None
 
 
-# ---------------------------------------------------------------------------
-# parse_deadline tests
-# ---------------------------------------------------------------------------
+def test_derive_status_uses_the_tender_deadline():
+    today = date.today()
 
-class TestParseDeadline:
-    def test_iso_format(self):
-        assert parse_deadline("2019-03-07") == date(2019, 3, 7)
-
-    def test_slash_format(self):
-        assert parse_deadline("07/03/2019") == date(2019, 3, 7)
-
-    def test_none_returns_none(self):
-        assert parse_deadline(None) is None
-
-    def test_empty_string_returns_none(self):
-        assert parse_deadline("") is None
-
-    def test_nan_returns_none(self):
-        assert parse_deadline(float("nan")) is None
-
-    def test_date_object_passthrough(self):
-        d = date(2019, 5, 1)
-        assert parse_deadline(d) == d
+    assert tenders_ingestor.derive_status(None) == "Open"
+    assert tenders_ingestor.derive_status(today + timedelta(days=1)) == "Open"
+    assert tenders_ingestor.derive_status(today - timedelta(days=1)) == "Closed"
 
 
-# ---------------------------------------------------------------------------
-# transform_openafrika tests
-# ---------------------------------------------------------------------------
-
-class TestTransformOpenafrika:
-    def _make_df(self, rows):
-        return pd.DataFrame(rows, columns=[
-            "entity type", "name", "ref", "description",
-            "category", "procurement method", "status",
-            "closing date", "tender details"
-        ])
-
-    def test_basic_transform(self):
-        df = self._make_df([
-            ["Ministry", "Kenya Revenue Authority", "KRA/001/2019",
-             "Supply of office furniture", "Goods", "Open Tender",
-             "Published", "2019-04-01", "ABC123"]
-        ])
-        source = {"name": "OpenAFRICA", "source_page": "https://example.com"}
-        records = transform_openafrika(df, source)
-        assert len(records) == 1
-        r = records[0]
-        assert r["procuring_entity"] == "Kenya Revenue Authority"
-        assert r["tender_number"] == "KRA/001/2019"
-        assert r["status"] == "Open"
-        assert r["source_name"] == "OpenAFRICA"
-
-    def test_skips_empty_entity(self):
-        df = self._make_df([
-            ["Ministry", "", "KRA/002/2019",
-             "Some description", "Goods", "Open Tender",
-             "Published", "2019-04-01", "XYZ"]
-        ])
-        source = {"name": "OpenAFRICA", "source_page": "https://example.com"}
-        records = transform_openafrika(df, source)
-        assert len(records) == 0
-
-    def test_awarded_status(self):
-        df = self._make_df([
-            ["County", "Nairobi County", "NBI/OT/055/2018",
-             "Construction of market stalls", "Works", "Open Tender",
-             "Awarded", "2019-02-28", "DEF456"]
-        ])
-        source = {"name": "OpenAFRICA", "source_page": "https://example.com"}
-        records = transform_openafrika(df, source)
-        assert records[0]["status"] == "Awarded"
-
-    def test_returns_list_of_dicts(self):
-        df = self._make_df([
-            ["University", "University of Nairobi", "UON/T/001/2019",
-             "Provision of library books", "Goods", "Open Tender",
-             "Published", "2019-05-01", "GHI789"]
-        ])
-        source = {"name": "OpenAFRICA", "source_page": "https://example.com"}
-        records = transform_openafrika(df, source)
-        assert isinstance(records, list)
-        assert isinstance(records[0], dict)
-
-    def test_required_keys_present(self):
-        df = self._make_df([
-            ["Ministry", "Ministry of Health", "MOH/001/2019",
-             "Medical supplies", "Goods", "Open Tender",
-             "Published", "2019-04-15", "JKL101"]
-        ])
-        source = {"name": "OpenAFRICA", "source_page": "https://example.com"}
-        records = transform_openafrika(df, source)
-        required_keys = [
-            "tender_number", "procuring_entity", "description",
-            "category", "estimated_value_kes", "deadline_date",
-            "status", "source_url", "source_name"
-        ]
-        for key in required_keys:
-            assert key in records[0], f"Missing key: {key}"
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://www.tenderskenya.co.ke/tender/office-furniture/", "office-furniture"),
+        ("https://example.test/other/path", "https://example.test/other/path"),
+    ],
+)
+def test_slug_from_url(url, expected):
+    assert tenders_ingestor.slug_from_url(url) == expected
 
 
-# ---------------------------------------------------------------------------
-# Source configuration sanity check
-# ---------------------------------------------------------------------------
+def test_scrape_page_parses_current_tender_card_without_network():
+    response = Mock()
+    response.text = """
+        <div class="card h-100">
+          <a class="tenderbox_title" href="/tender/medical-supplies">Medical supplies</a>
+          <div class="card-footer tenderbox_footer">
+            <a class="d-block">
+              <p>Entity: <span class="text-orange-1">Ministry of Health</span></p>
+              <p>Type: <span class="text-orange-1">Goods</span></p>
+              <p>Open: <span class="typcn"></span><span>Jan 01, 2099</span></p>
+              <p>Close: <span class="typcn"></span><span>Dec 31, 2099</span></p>
+            </a>
+          </div>
+        </div>
+    """
 
-class TestSourceConfig:
-    def test_sources_not_empty(self):
-        assert len(SOURCES) >= 1
+    with patch.object(tenders_ingestor.requests, "get", return_value=response) as get:
+        records = tenders_ingestor.scrape_page(3)
 
-    def test_sources_have_required_fields(self):
-        for s in SOURCES:
-            assert "name" in s
-            assert "url" in s
-            assert "format" in s
+    get.assert_called_once_with(
+        tenders_ingestor.LISTING_URL.format(page=3),
+        headers=tenders_ingestor.HEADERS,
+        timeout=30,
+    )
+    response.raise_for_status.assert_called_once_with()
+    assert records == [
+        {
+            "tender_number": "medical-supplies",
+            "procuring_entity": "Ministry of Health",
+            "description": "Medical supplies",
+            "category": "Goods",
+            "estimated_value_kes": None,
+            "deadline_date": date(2099, 12, 31),
+            "status": "Open",
+            "source_url": "https://www.tenderskenya.co.ke/tender/medical-supplies",
+            "source_name": "TendersKenya",
+        }
+    ]
 
-    def test_openafrika_url_is_https(self):
-        openafrika = next(s for s in SOURCES if s["name"] == "OpenAFRICA")
-        assert openafrika["url"].startswith("https://")
+
+def test_scrape_page_skips_cards_without_source_footer():
+    response = Mock()
+    response.text = """
+        <div class="card h-100">
+          <a class="tenderbox_title" href="/tender/incomplete">Incomplete record</a>
+        </div>
+    """
+
+    with patch.object(tenders_ingestor.requests, "get", return_value=response):
+        assert tenders_ingestor.scrape_page(1) == []

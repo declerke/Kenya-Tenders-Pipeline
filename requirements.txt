@@ -1,7 +1,8 @@
 requests==2.33.0
 beautifulsoup4==4.12.3
 psycopg2-binary==2.9.9
-dbt-postgres==1.8.2
+dbt-core==1.11.16
+dbt-postgres==1.11.0
 deepdiff>=8.6.2
 pandas==2.2.2
 spacy==3.7.4
