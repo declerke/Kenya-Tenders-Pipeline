@@ -51,8 +51,9 @@ def test_slug_from_url(url, expected):
 
 
 def test_scrape_page_parses_current_tender_card_without_network():
+    deadline = date.today() + timedelta(days=30)
     response = Mock()
-    response.text = """
+    response.text = f"""
         <div class="card h-100">
           <a class="tenderbox_title" href="/tender/medical-supplies">Medical supplies</a>
           <div class="card-footer tenderbox_footer">
@@ -60,7 +61,7 @@ def test_scrape_page_parses_current_tender_card_without_network():
               <p>Entity: <span class="text-orange-1">Ministry of Health</span></p>
               <p>Type: <span class="text-orange-1">Goods</span></p>
               <p>Open: <span class="typcn"></span><span>Jan 01, 2099</span></p>
-              <p>Close: <span class="typcn"></span><span>Dec 31, 2099</span></p>
+              <p>Close: <span class="typcn"></span><span>{deadline.isoformat()}</span></p>
             </a>
           </div>
         </div>
@@ -82,7 +83,7 @@ def test_scrape_page_parses_current_tender_card_without_network():
             "description": "Medical supplies",
             "category": "Goods",
             "estimated_value_kes": None,
-            "deadline_date": date(2099, 12, 31),
+            "deadline_date": deadline,
             "status": "Open",
             "source_url": "https://www.tenderskenya.co.ke/tender/medical-supplies",
             "source_name": "TendersKenya",
